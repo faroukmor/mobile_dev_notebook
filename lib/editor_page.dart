@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import 'db.dart';
 import 'note.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+
+
 
 class EditorPage extends StatefulWidget {
   final Note? note;
@@ -16,6 +20,40 @@ class _EditorPageState extends State<EditorPage> {
   List<Category> categories = [];
   int? categoryId;
   bool favorite = false;
+  bool loadingQuote = false;
+
+  Future<void> addQuote() async {
+  setState(() {
+    loadingQuote = true;
+  });
+
+  try {
+    final response = await http
+        .get(Uri.parse('https://dummyjson.com/quotes/random'))
+        .timeout(const Duration(seconds: 8));
+    if (response.statusCode != 200) throw Exception('Erreur serveur');
+
+    final data = jsonDecode(response.body);
+    final quote = '“${data['quote']}” — ${data['author']}';
+    contentController.text = contentController.text.isEmpty
+        ? quote
+        : '${contentController.text}\n\n$quote';
+  } catch (e) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Impossible de récupérer une citation')),
+      );
+    }
+  }
+
+  if (mounted) {
+    setState(() {
+      loadingQuote = false;
+    });
+  }
+}
+
+
 
   @override
   void initState() {
@@ -74,6 +112,7 @@ class _EditorPageState extends State<EditorPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color.fromARGB(255, 104, 239, 237),
       appBar: AppBar(
         title: Text(widget.note == null ? 'Nouvelle note' : 'Modifier la note'),
         actions: [
@@ -120,6 +159,12 @@ const SizedBox(height: 12),
               decoration: const InputDecoration(labelText: 'Contenu', border: OutlineInputBorder()),
             ),
             const SizedBox(height: 12),
+            OutlinedButton.icon(
+            onPressed: loadingQuote ? null : addQuote,
+            icon: const Icon(Icons.lightbulb_outline),
+            label: Text(loadingQuote ? 'Chargement...' : 'Ajouter une citation'),
+          ),
+          const SizedBox(height: 8),
             ElevatedButton(onPressed: save, child: const Text('Enregistrer')),
           ],
         ),
